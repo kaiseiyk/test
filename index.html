@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工事写真管理アプリ プロトタイプ</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#202225">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="工事写真">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt:#202225;
+    --asphalt-2:#2b2e33;
+    --amber:#F5A623;
+    --amber-dim:#8a5f13;
+    --concrete:#F6F5F2;
+    --concrete-2:#EAE8E3;
+    --steel:#6B7280;
+    --steel-dark:#3f434a;
+    --green:#2E8B4F;
+    --red:#E0503A;
+    --line:#d8d5cf;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--asphalt);
+    font-family:'Noto Sans JP',sans-serif;
+    color:#20232a;
+    display:flex;flex-direction:column;
+    align-items:center;
+  }
+  #app{
+    width:100%;max-width:460px;
+    background:var(--concrete);
+    min-height:100vh;
+    display:flex;flex-direction:column;
+    position:relative;
+  }
+  .topbar{
+    background:var(--asphalt);color:var(--concrete);
+    padding:14px 16px 12px;flex-shrink:0;
+  }
+  .topbar .ttl{font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:15px;}
+  .topbar .sub{font-size:11px;color:#9a9fa6;margin-top:2px;}
+
+  .tabs{display:flex;background:var(--asphalt-2);flex-shrink:0;}
+  .tabbtn{
+    flex:1;text-align:center;padding:11px 6px;
+    font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:12.5px;
+    color:#9a9fa6;cursor:pointer;border-bottom:3px solid transparent;
+  }
+  .tabbtn.active{color:var(--amber);border-bottom-color:var(--amber);}
+
+  .install-banner{
+    display:none;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--amber);color:#231a05;padding:10px 14px;flex-shrink:0;
+    font-size:12px;font-weight:700;font-family:'Zen Kaku Gothic New',sans-serif;
+  }
+  .install-actions{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+  .install-btn{
+    background:#231a05;color:var(--amber);padding:6px 12px;border-radius:14px;
+    font-size:11.5px;cursor:pointer;
+  }
+  .install-close{cursor:pointer;font-size:16px;line-height:1;opacity:.7;}
+
+  .view{display:none;flex:1;flex-direction:column;overflow-y:auto;}
+  .view.active{display:flex;}
+
+  /* ---- 設定タブ ---- */
+  .field{padding:14px 16px 0;}
+  .field label{
+    display:block;font-size:11.5px;color:var(--steel);margin-bottom:6px;
+    font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;
+  }
+  select,input[type=text]{
+    width:100%;padding:12px 12px;border-radius:10px;border:1px solid var(--line);
+    background:#fff;font-size:14px;font-family:'Noto Sans JP',sans-serif;color:#20232a;
+  }
+  .primary-btn{
+    margin:20px 16px;background:var(--asphalt);color:var(--amber);text-align:center;
+    padding:15px;border-radius:12px;font-family:'Zen Kaku Gothic New',sans-serif;
+    font-weight:700;font-size:15px;cursor:pointer;
+  }
+  .primary-btn:active{opacity:.8;}
+  .hint{padding:0 16px;font-size:11.5px;color:var(--steel);line-height:1.6;}
+
+  /* ---- 撮影タブ ---- */
+  .camwrap{flex:1;position:relative;background:#111;min-height:420px;}
+  #video{width:100%;height:100%;object-fit:cover;display:block;background:#000;}
+  #camMsg{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    color:#fff;font-size:13px;text-align:center;padding:24px;
+    font-family:'Zen Kaku Gothic New',sans-serif;
+  }
+  .shot-chip{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;}
+  .chip{background:rgba(15,16,18,.75);color:#fff;font-size:11px;font-weight:700;
+    font-family:'Zen Kaku Gothic New',sans-serif;padding:7px 11px;border-radius:20px;
+    display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);}
+  .chip.off .dot{background:var(--steel);}
+
+  #ghostImg{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    opacity:.55;pointer-events:none;display:none;
+  }
+  .ghost-slider-wrap{
+    position:absolute;right:12px;top:56px;display:none;flex-direction:column;
+    align-items:center;background:rgba(15,16,18,.7);border-radius:16px;padding:8px 6px;
+  }
+  .ghost-slider-wrap .sv{font-size:8.5px;color:#cfd3d6;margin-bottom:5px;font-family:'Zen Kaku Gothic New',sans-serif;}
+  .ghost-slider{writing-mode:vertical-lr;direction:rtl;width:4px;height:56px;accent-color:var(--amber);}
+
+  .blackboard{
+    position:absolute;left:12px;bottom:84px;width:220px;
+    background:#2f6b45;border:4px solid #cfc6a8;border-radius:2px;
+    box-shadow:0 8px 18px rgba(0,0,0,.5);font-family:'Zen Kaku Gothic New',sans-serif;overflow:hidden;
+    touch-action:none;user-select:none;transition:box-shadow .15s;
+  }
+  .blackboard.dragging{
+    box-shadow:0 0 0 3px var(--amber), 0 12px 26px rgba(0,0,0,.6);
+    opacity:.92;
+  }
+  .bb-row{display:flex;border-bottom:2px solid #fff;}
+  .bb-row:last-child{border-bottom:none;}
+  .bb-label{color:#fff;font-weight:700;font-size:11px;padding:4px 6px;border-right:2px solid #fff;white-space:nowrap;display:flex;align-items:center;}
+  .bb-fill{flex:1;color:#eafbe9;font-size:9.5px;font-weight:700;padding:4px 6px;display:flex;align-items:center;border-right:2px solid #fff;}
+  .bb-fill:last-child{border-right:none;}
+  .bb-fill.editable{cursor:pointer;position:relative;}
+  .bb-fill.editable::after{content:"✎";font-size:8px;margin-left:4px;opacity:.75;}
+  .bb-fill.editable:active{background:rgba(255,255,255,.15);}
+  .bb-grid{height:64px;position:relative;background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.4) 0 1px, transparent 1px 15px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0 1px, transparent 1px 15px);}
+  .bb-item-note{
+    position:absolute;top:6px;left:6px;right:6px;
+    color:#fff;font-weight:700;font-size:12px;
+    font-family:'Zen Kaku Gothic New',sans-serif;
+    cursor:pointer;
+  }
+  .bb-item-note::after{content:"✎";font-size:8px;margin-left:4px;opacity:.75;}
+  .bb-item-note:active{opacity:.75;}
+
+  /* ---- 黒板タップ編集シート ---- */
+  .edit-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.45);
+    display:none;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .edit-backdrop.show{display:flex;}
+  .edit-sheet{
+    width:100%;max-width:460px;background:var(--concrete);
+    border-radius:16px 16px 0 0;padding:18px 18px 22px;
+  }
+  .edit-sheet .es-title{
+    font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:14px;margin-bottom:12px;
+  }
+  .edit-sheet select, .edit-sheet input[type=text]{
+    width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);
+    background:#fff;font-size:14px;margin-bottom:14px;
+  }
+  .es-actions{display:flex;gap:10px;}
+  .es-btn{
+    flex:1;text-align:center;padding:12px;border-radius:10px;
+    font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;
+  }
+  .es-btn.cancel{background:var(--concrete-2);color:var(--steel-dark);}
+  .es-btn.ok{background:var(--asphalt);color:var(--amber);}
+  .es-btn.ok.danger{background:var(--red);color:#fff;}
+
+  .danger-btn{
+    margin:6px 16px 24px;text-align:center;padding:13px;border-radius:12px;
+    font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:13.5px;
+    color:var(--red);background:#fdecea;border:1px solid #f3c6c0;cursor:pointer;
+  }
+
+  .camera-controls{
+    position:absolute;bottom:0;left:0;right:0;padding:14px 22px 18px;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(to top, rgba(0,0,0,.55), transparent);
+  }
+  .shutter{width:66px;height:66px;border-radius:50%;background:var(--amber);border:5px solid #fff;
+    box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer;}
+  .shutter:active{transform:scale(.94);}
+  .toast{
+    position:absolute;bottom:100px;left:50%;transform:translateX(-50%);
+    background:var(--green);color:#fff;padding:9px 16px;border-radius:20px;
+    font-size:12.5px;font-weight:700;font-family:'Zen Kaku Gothic New',sans-serif;
+    opacity:0;transition:opacity .25s;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+
+  /* ---- チェックリストタブ ---- */
+  .check-summary{display:flex;gap:10px;padding:14px 16px 4px;}
+  .sum-card{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:center;}
+  .sum-num{font-family:'Zen Kaku Gothic New',sans-serif;font-weight:900;font-size:22px;}
+  .sum-num.green{color:var(--green);}
+  .sum-num.red{color:var(--red);}
+  .sum-cap{font-size:10px;color:var(--steel);margin-top:2px;}
+
+  .group-title{
+    font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:13px;
+    margin:16px 16px 8px;display:flex;justify-content:space-between;color:#20232a;
+  }
+  .group-title span{color:var(--steel);font-weight:500;font-size:11px;}
+  .check-item{
+    display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);
+    border-radius:10px;padding:9px 12px;margin:0 16px 8px;
+  }
+  .check-thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;background:#ddd;flex-shrink:0;}
+  .check-mark{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
+  .check-mark.ok{background:var(--green);}
+  .check-mark.ng{background:var(--red);}
+  .check-text{flex:1;min-width:0;}
+  .check-title{font-size:13px;font-weight:500;}
+  .check-sub{font-size:10.5px;color:var(--steel);margin-top:1px;}
+  .del-btn{font-size:11px;color:var(--red);font-weight:700;font-family:'Zen Kaku Gothic New',sans-serif;cursor:pointer;flex-shrink:0;}
+  .empty-note{padding:24px 16px;text-align:center;color:var(--steel);font-size:12.5px;}
+
+  /* ---- テンプレート編集タブ ---- */
+  .kosyu-pills{display:flex;flex-wrap:wrap;gap:8px;padding:14px 16px 10px;}
+  .pill{
+    flex-shrink:0;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;
+    font-family:'Zen Kaku Gothic New',sans-serif;background:#fff;border:1px solid var(--line);
+    color:var(--steel-dark);cursor:pointer;white-space:nowrap;
+  }
+  .pill.active{background:var(--asphalt);color:var(--amber);border-color:var(--asphalt);}
+  .pill.add{background:none;border:1px dashed var(--steel);color:var(--steel);}
+  .process-block{margin:0 16px 16px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .process-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--concrete-2);}
+  .process-name{font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:13px;}
+  .process-count{font-size:11px;color:var(--steel);}
+  .shot-row{display:flex;align-items:center;gap:9px;padding:10px 14px;border-top:1px solid var(--line);}
+  .drag-handle{color:#c7c4bc;font-size:14px;}
+  .shot-input{flex:1;border:none;border-bottom:1px solid var(--line);font-size:13px;padding:4px 2px;background:transparent;color:#20232a;}
+  .req-toggle{font-size:10.5px;font-weight:700;font-family:'Zen Kaku Gothic New',sans-serif;padding:5px 9px;border-radius:14px;flex-shrink:0;cursor:pointer;}
+  .req-toggle.required{background:#fdecea;color:var(--red);}
+  .req-toggle.optional{background:#eef1f2;color:var(--steel);}
+  .remove-x{color:var(--steel);font-size:16px;flex-shrink:0;cursor:pointer;padding:2px 4px;}
+  .add-shot-row{padding:11px 14px;border-top:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--amber-dim);font-family:'Zen Kaku Gothic New',sans-serif;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="install-banner" id="installBanner">
+    <span id="installText">ホーム画面に追加すると、アプリのように使えます</span>
+    <div class="install-actions">
+      <span id="installBtn" class="install-btn">追加</span>
+      <span id="installClose" class="install-close">×</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tabbtn active" data-view="v1">① 設定</div>
+    <div class="tabbtn" data-view="v2">② 撮影</div>
+    <div class="tabbtn" data-view="v3">③ チェックリスト</div>
+    <div class="tabbtn" data-view="v4">④ テンプレート編集</div>
+    <div class="tabbtn" data-view="v5">⑤ 現場情報</div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="view active" id="v1">
+    <div class="topbar"><div class="ttl">撮影条件を設定</div><div class="sub">工種・中科目・工程・項目・測点を選んでください</div></div>
+    <div class="field">
+      <label>工種</label>
+      <select id="selKosyu"></select>
+    </div>
+    <div class="field">
+      <label>中科目</label>
+      <select id="selChuka"></select>
+    </div>
+    <div class="field">
+      <label>工程</label>
+      <select id="selKotei"><option>施工前</option><option selected>施工状況</option><option>工程管理</option><option>施工完了</option></select>
+    </div>
+    <div class="field">
+      <label>撮影項目(必須ショット)</label>
+      <select id="selItem"></select>
+    </div>
+    <div class="field">
+      <label>測点(任意入力)</label>
+      <input type="text" id="inSokuten" placeholder="例: 2F 通り X3-Y2">
+    </div>
+    <div class="hint">この内容が電子黒板に自動反映され、撮影画面に進みます。実運用では工種・項目のリストは④テンプレート編集で管理者が設定したものを使います。</div>
+    <div class="primary-btn" id="goCamera">この内容で撮影へ</div>
+  </div>
+
+  <!-- 撮影 -->
+  <div class="view" id="v2">
+    <div class="camwrap">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="ghostImg" alt="前工程の画角ゴースト">
+      <div id="camMsg"></div>
+      <div class="shot-chip">
+        <div class="chip" id="ghostToggle"><span class="dot"></span>ゴースト表示</div>
+        <div class="chip" id="remainChip">残り -</div>
+      </div>
+      <div class="ghost-slider-wrap" id="ghostSliderWrap">
+        <div class="sv">濃さ</div>
+        <input type="range" class="ghost-slider" id="ghostSlider" min="0" max="100" value="55">
+      </div>
+      <div class="blackboard">
+        <div class="bb-row"><div class="bb-label">工事名</div><div class="bb-fill" id="bbKoji">〇〇マンション新築工事</div></div>
+        <div class="bb-row"><div class="bb-label">工種</div><div class="bb-fill editable" id="bbKosyu" data-field="kosyu">-</div><div class="bb-label">測点</div><div class="bb-fill editable" id="bbSokuten" data-field="sokuten">-</div></div>
+        <div class="bb-row"><div class="bb-label">中科目</div><div class="bb-fill editable" id="bbChuka" data-field="chuka">-</div></div>
+        <div class="bb-grid"><div class="bb-item-note editable" id="bbItem" data-field="item">-</div></div>
+        <div class="bb-row"><div class="bb-label">施工会社</div><div class="bb-fill" id="bbCompany">△△建設(株)</div></div>
+      </div>
+      <div class="camera-controls"><div class="shutter" id="shutterBtn"></div></div>
+      <div class="toast" id="toast">保存しました</div>
+    </div>
+  </div>
+
+  <div class="edit-backdrop" id="editBackdrop">
+    <div class="edit-sheet">
+      <div class="es-title" id="esTitle">項目を編集</div>
+      <div id="esBody"></div>
+      <div class="es-actions">
+        <div class="es-btn cancel" id="esCancel">キャンセル</div>
+        <div class="es-btn ok" id="esOk">決定</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- チェックリスト -->
+  <div class="view" id="v3">
+    <div class="topbar"><div class="ttl">撮影漏れチェック</div><div class="sub" id="checklistSub">工種を選んで確認</div></div>
+    <div class="field" style="padding-bottom:10px;">
+      <select id="checkKosyu"></select>
+    </div>
+    <div class="field" style="padding-bottom:10px;">
+      <select id="checkChuka"></select>
+    </div>
+    <div class="field" style="padding-bottom:10px;">
+      <select id="checkSokuten"></select>
+    </div>
+    <div class="check-summary">
+      <div class="sum-card"><div class="sum-num green" id="cntOk">0</div><div class="sum-cap">撮影済み</div></div>
+      <div class="sum-num-wrap"></div>
+      <div class="sum-card"><div class="sum-num red" id="cntNg">0</div><div class="sum-cap">未撮影</div></div>
+      <div class="sum-card"><div class="sum-num" id="cntAll">0</div><div class="sum-cap">必須項目</div></div>
+    </div>
+    <div id="checklistBody"></div>
+  </div>
+
+  <!-- テンプレート編集 -->
+  <div class="view" id="v4">
+    <div class="topbar"><div class="ttl">工種テンプレート編集</div><div class="sub">工種→中科目ごとに工程・必須ショットを設定します</div></div>
+    <div class="kosyu-pills" id="tmplPills"></div>
+    <div class="kosyu-pills" id="tmplChukaPills" style="padding-top:0;"></div>
+    <div id="tmplBody"></div>
+  </div>
+
+  <!-- 現場情報 -->
+  <div class="view" id="v5">
+    <div class="topbar"><div class="ttl">現場情報の編集</div><div class="sub">電子黒板の「工事名」「施工会社」を設定します</div></div>
+    <div class="field">
+      <label>工事名</label>
+      <input type="text" id="inKoji" placeholder="例: 〇〇マンション新築工事">
+    </div>
+    <div class="field">
+      <label>施工会社</label>
+      <input type="text" id="inCompany" placeholder="例: 〇〇建設(株)">
+    </div>
+    <div class="hint" style="padding-top:6px;">入力すると自動で保存され、②撮影画面の電子黒板にすぐ反映されます。</div>
+  </div>
+
+</div>
+
+<script>
+/* ---------------- テンプレート(初期値。編集内容は端末に保存され上書きされる) ---------------- */
+const DEFAULT_TEMPLATE = {
+  "鉄筋工事": {
+    "柱": {
+      "施工前": [{name:"全景写真(施工前)",required:true}],
+      "施工状況": [{name:"かぶり厚検査",required:true},{name:"継手・定着状況",required:true}],
+      "工程管理": [{name:"かぶり厚検査 施工完了",required:true},{name:"継手・定着状況 施工完了",required:true}],
+      "施工完了": [{name:"施工完了",required:true}]
+    },
+    "梁": {
+      "施工前": [{name:"全景写真(施工前)",required:true}],
+      "施工状況": [{name:"建込み精度(垂直・水平)",required:true},{name:"かぶり厚検査",required:true}],
+      "工程管理": [{name:"建込み精度(垂直・水平) 施工完了",required:true},{name:"かぶり厚検査 施工完了",required:true}],
+      "施工完了": [{name:"施工完了",required:true}]
+    },
+    "スラブ": {
+      "施工前": [{name:"墨出し状況",required:true}],
+      "施工状況": [{name:"かぶり厚検査",required:true}],
+      "工程管理": [{name:"かぶり厚検査 施工完了",required:true}],
+      "施工完了": [{name:"施工完了",required:true}]
+    }
+  },
+  "型枠工事": {
+    "共通": {
+      "施工前": [{name:"全景写真(施工前)",required:true},{name:"墨出し状況",required:true},{name:"使用資材の品番表示",required:false}],
+      "施工状況": [{name:"建込み精度(垂直・水平)",required:true},{name:"セパレーター・締付状況",required:true}],
+      "工程管理": [{name:"建込み精度(垂直・水平) 施工完了",required:true},{name:"セパレーター・締付状況 施工完了",required:true}],
+      "施工完了": [{name:"施工完了",required:true}]
+    }
+  },
+  "配管工事": {
+    "共通": {
+      "施工前": [{name:"配管ルート全景",required:true}],
+      "施工状況": [{name:"接続部・支持金物",required:true}],
+      "工程管理": [{name:"接続部・支持金物 施工完了",required:true}],
+      "施工完了": [{name:"施工完了",required:true}]
+    }
+  }
+};
+let TEMPLATE = {};
+function kosyuList(){ return Object.keys(TEMPLATE); }
+function chukaList(kosyu){ return TEMPLATE[kosyu] ? Object.keys(TEMPLATE[kosyu]) : []; }
+
+/* 「工程管理」の項目名は「施工状況」の項目と連動する(名称のみ自動生成・必須任意は個別設定可) */
+function syncManagementItems(kosyu, chuka){
+  const node = TEMPLATE[kosyu][chuka];
+  const src = node["施工状況"] || [];
+  const cur = node["工程管理"] || [];
+  node["工程管理"] = src.map((it, i) => ({
+    name: it.name + " 施工完了",
+    required: cur[i] ? cur[i].required : true
+  }));
+  if(node["工程管理"].length === 0){
+    node["工程管理"] = [{name:"工程管理", required:true}];
+  }
+}
+
+function migrateTemplate(){
+  let changed = false;
+  Object.keys(TEMPLATE).forEach(k=>{
+    let t = TEMPLATE[k];
+    // 旧: 工種直下がフラットな工程キー構造だった場合、「共通」中科目にラップする
+    if(Array.isArray(t["施工前"]) || Array.isArray(t["着工"]) || Array.isArray(t["中間"]) || Array.isArray(t["工程"]) || Array.isArray(t["完了"])){
+      TEMPLATE[k] = { "共通": t };
+      t = TEMPLATE[k];
+      changed = true;
+    }
+    Object.keys(t).forEach(c=>{
+      const node = t[c];
+      if(node["着工"] && !node["施工前"]){ node["施工前"] = node["着工"]; delete node["着工"]; changed = true; }
+      if(node["中間"] && !node["施工状況"]){ node["施工状況"] = node["中間"]; delete node["中間"]; changed = true; }
+      if(node["工程"] && !node["施工状況"]){ node["施工状況"] = node["工程"]; delete node["工程"]; changed = true; }
+      if(node["完了"] && !node["工程管理"]){ node["工程管理"] = node["完了"]; delete node["完了"]; changed = true; }
+      if(!node["施工前"]) node["施工前"] = [{name:"施工前", required:true}];
+      if(!node["施工状況"]) node["施工状況"] = [];
+      if(!node["工程管理"]) node["工程管理"] = [];
+      if(node["工程管理"].length === 0) syncManagementItems(k, c);
+      if(!node["施工完了"]) node["施工完了"] = [{name:"施工完了", required:true}];
+    });
+    if(Object.keys(t).length === 0){
+      t["共通"] = {
+        "施工前": [{name:"施工前", required:true}],
+        "施工状況": [],
+        "工程管理": [{name:"工程管理", required:true}],
+        "施工完了": [{name:"施工完了", required:true}]
+      };
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+/* ---------------- 現場情報(工事名・施工会社) ---------------- */
+let siteInfo = { koji: "〇〇マンション新築工事", company: "△△建設(株)" };
+async function loadSiteInfo(){
+  try{
+    const r = await window.storage.get('siteInfo', false);
+    if(r) siteInfo = JSON.parse(r.value);
+  }catch(e){ /* デフォルト値を使用 */ }
+}
+async function saveSiteInfo(){
+  try{ await window.storage.set('siteInfo', JSON.stringify(siteInfo), false); }catch(e){ console.error('siteInfo save failed', e); }
+}
+
+async function loadTemplate(){
+  try{
+    const r = await window.storage.get('template', false);
+    TEMPLATE = r ? JSON.parse(r.value) : JSON.parse(JSON.stringify(DEFAULT_TEMPLATE));
+  }catch(e){ TEMPLATE = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE)); }
+  const changed = migrateTemplate();
+  if(changed) await saveTemplate();
+}
+async function saveTemplate(){
+  try{ await window.storage.set('template', JSON.stringify(TEMPLATE), false); }catch(e){ console.error('template save failed', e); }
+}
+
+/* ---------------- state / storage ---------------- */
+let stream = null;
+let photos = []; // {id,kosyu,kotei,item,sokuten,thumb,ts}
+
+async function loadPhotos(){
+  try{
+    const r = await window.storage.get('photos', false);
+    photos = r ? JSON.parse(r.value) : [];
+  }catch(e){ photos = []; }
+  let changed = false;
+  photos.forEach(p=>{
+    if(p.kotei === '着工'){ p.kotei = '施工前'; changed = true; }
+    if(p.kotei === '中間'){ p.kotei = '施工状況'; changed = true; }
+    if(p.kotei === '工程'){ p.kotei = '施工状況'; changed = true; }
+    if(p.kotei === '完了'){ p.kotei = '工程管理'; changed = true; }
+    if(!p.chuka){ p.chuka = '共通'; changed = true; }
+  });
+  if(changed) await savePhotos();
+}
+async function savePhotos(){
+  try{
+    await window.storage.set('photos', JSON.stringify(photos), false);
+  }catch(e){ console.error('storage save failed', e); }
+}
+
+/* ---------------- setup view ---------------- */
+const selKosyu = document.getElementById('selKosyu');
+const selChuka = document.getElementById('selChuka');
+const selKotei = document.getElementById('selKotei');
+const selItem = document.getElementById('selItem');
+const checkKosyu = document.getElementById('checkKosyu');
+const checkChuka = document.getElementById('checkChuka');
+const checkSokuten = document.getElementById('checkSokuten');
+
+function refreshKosyuSelects(){
+  const cur1 = selKosyu.value, cur2 = checkKosyu.value;
+  const opts = kosyuList().map(k=>`<option>${k}</option>`).join('');
+  selKosyu.innerHTML = opts;
+  checkKosyu.innerHTML = opts;
+  if(kosyuList().includes(cur1)) selKosyu.value = cur1;
+  if(kosyuList().includes(cur2)) checkKosyu.value = cur2;
+}
+
+function refreshSetupChuka(){
+  const k = selKosyu.value;
+  const cur = selChuka.value;
+  const list = chukaList(k);
+  selChuka.innerHTML = list.map(c=>`<option>${c}</option>`).join('');
+  if(list.includes(cur)) selChuka.value = cur;
+}
+
+function refreshItemOptions(){
+  const k = selKosyu.value, c = selChuka.value, t = selKotei.value;
+  const items = (TEMPLATE[k] && TEMPLATE[k][c] && TEMPLATE[k][c][t]) || [];
+  selItem.innerHTML = items.map(i=>`<option>${i.name}</option>`).join('');
+}
+selKosyu.addEventListener('change', ()=>{ refreshSetupChuka(); refreshItemOptions(); });
+selChuka.addEventListener('change', refreshItemOptions);
+selKotei.addEventListener('change', refreshItemOptions);
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('.tabbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.view).classList.add('active');
+    if(btn.dataset.view === 'v2'){ startCamera(); updateBlackboard(); }
+    else stopCamera();
+    if(btn.dataset.view === 'v3') renderChecklist();
+    if(btn.dataset.view === 'v4') renderTemplateEditor();
+    if(btn.dataset.view === 'v5') renderSiteInfoForm();
+  });
+});
+
+/* ---------------- 現場情報フォーム ---------------- */
+function renderSiteInfoForm(){
+  document.getElementById('inKoji').value = siteInfo.koji;
+  document.getElementById('inCompany').value = siteInfo.company;
+}
+document.getElementById('inKoji').addEventListener('change', async (e)=>{
+  siteInfo.koji = e.target.value.trim() || siteInfo.koji;
+  e.target.value = siteInfo.koji;
+  await saveSiteInfo();
+  updateBlackboard();
+});
+document.getElementById('inCompany').addEventListener('change', async (e)=>{
+  siteInfo.company = e.target.value.trim() || siteInfo.company;
+  e.target.value = siteInfo.company;
+  await saveSiteInfo();
+  updateBlackboard();
+});
+
+/* ---------------- camera ---------------- */
+const video = document.getElementById('video');
+const camMsg = document.getElementById('camMsg');
+
+async function startCamera(){
+  if(stream) return;
+  camMsg.style.display = 'none';
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
+    video.srcObject = stream;
+  }catch(e){
+    camMsg.style.display = 'flex';
+    camMsg.textContent = 'カメラにアクセスできませんでした。ブラウザのカメラ権限を許可するか、HTTPSで開いた状態でお試しください。(' + e.message + ')';
+  }
+}
+function stopCamera(){
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+}
+
+/* ---------------- 撮影画面: 黒板 / ゴースト反映 ---------------- */
+document.getElementById('goCamera').addEventListener('click', async ()=>{
+  document.querySelector('.tabbtn[data-view="v2"]').click();
+  updateBlackboard();
+  await updateGhost();
+  updateRemainChip();
+});
+
+function currentSelection(){
+  return {
+    kosyu: selKosyu.value,
+    chuka: selChuka.value,
+    kotei: selKotei.value,
+    item: selItem.value,
+    sokuten: document.getElementById('inSokuten').value || '(未入力)'
+  };
+}
+
+function updateBlackboard(){
+  const s = currentSelection();
+  document.getElementById('bbKosyu').textContent = s.kosyu;
+  document.getElementById('bbChuka').textContent = s.chuka;
+  document.getElementById('bbSokuten').textContent = s.sokuten;
+  document.getElementById('bbItem').textContent = s.item;
+  document.getElementById('bbKoji').textContent = siteInfo.koji;
+  document.getElementById('bbCompany').textContent = siteInfo.company;
+}
+
+function updateRemainChip(){
+  const s = currentSelection();
+  const items = (TEMPLATE[s.kosyu] && TEMPLATE[s.kosyu][s.chuka] && TEMPLATE[s.kosyu][s.chuka][s.kotei]) || [];
+  const required = items.filter(i=>i.required);
+  const done = required.filter(item => photos.some(p=>p.kosyu===s.kosyu && p.chuka===s.chuka && p.kotei===s.kotei && p.item===item.name)).length;
+  document.getElementById('remainChip').textContent = `残り ${required.length - done} / ${required.length}`;
+}
+
+/* ゴースト: 同じ工種・中科目・同じ項目で、直近に撮った別工程の写真を探す */
+async function updateGhost(){
+  const s = currentSelection();
+  const cand = photos
+    .filter(p => p.kosyu===s.kosyu && p.chuka===s.chuka && p.item===s.item && p.kotei!==s.kotei)
+    .sort((a,b)=>b.ts-a.ts)[0];
+  const img = document.getElementById('ghostImg');
+  if(cand){
+    img.src = cand.thumb;
+    img.dataset.available = '1';
+  } else {
+    img.removeAttribute('src');
+    img.dataset.available = '0';
+  }
+}
+
+const ghostToggle = document.getElementById('ghostToggle');
+const ghostImg = document.getElementById('ghostImg');
+const ghostSliderWrap = document.getElementById('ghostSliderWrap');
+const ghostSlider = document.getElementById('ghostSlider');
+let ghostOn = true;
+
+function applyGhostVisibility(){
+  const has = ghostImg.dataset.available === '1';
+  ghostImg.style.display = (ghostOn && has) ? 'block' : 'none';
+  ghostSliderWrap.style.display = (ghostOn && has) ? 'flex' : 'none';
+  ghostToggle.classList.toggle('off', !ghostOn);
+}
+ghostToggle.addEventListener('click', ()=>{ ghostOn = !ghostOn; applyGhostVisibility(); });
+ghostSlider.addEventListener('input', ()=>{ ghostImg.style.opacity = ghostSlider.value/100; });
+
+/* ---------------- 黒板タップ編集 ---------------- */
+const editBackdrop = document.getElementById('editBackdrop');
+const esTitle = document.getElementById('esTitle');
+const esBody = document.getElementById('esBody');
+const esCancel = document.getElementById('esCancel');
+const esOk = document.getElementById('esOk');
+let editingField = null;
+
+function openEditSheet(field){
+  editingField = field;
+  esOk.textContent = '決定';
+  esOk.classList.remove('danger');
+  if(field === 'kosyu'){
+    esTitle.textContent = '工種を選択';
+    esBody.innerHTML = `<select id="esInput">${kosyuList().map(k=>`<option ${k===selKosyu.value?'selected':''}>${k}</option>`).join('')}</select>`;
+  } else if(field === 'chuka'){
+    esTitle.textContent = '中科目を選択';
+    const list = chukaList(selKosyu.value);
+    esBody.innerHTML = `<select id="esInput">${list.map(c=>`<option ${c===selChuka.value?'selected':''}>${c}</option>`).join('')}</select>`;
+  } else if(field === 'sokuten'){
+    esTitle.textContent = '測点を入力';
+    esBody.innerHTML = `<input type="text" id="esInput" value="${document.getElementById('inSokuten').value}" placeholder="例: 2F 通り X3-Y2">`;
+  } else if(field === 'item'){
+    esTitle.textContent = '撮影項目を選択';
+    const items = (TEMPLATE[selKosyu.value] && TEMPLATE[selKosyu.value][selChuka.value] && TEMPLATE[selKosyu.value][selChuka.value][selKotei.value]) || [];
+    esBody.innerHTML = `<select id="esInput">${items.map(i=>`<option ${i.name===selItem.value?'selected':''}>${i.name}</option>`).join('')}</select>`;
+  } else if(field === 'newKosyu'){
+    esTitle.textContent = '新しい工種を追加';
+    esBody.innerHTML = `<input type="text" id="esInput" placeholder="例: 防水工事">`;
+  } else if(field === 'deleteKosyu'){
+    esTitle.textContent = '工種を削除しますか?';
+    esBody.innerHTML = `<div style="font-size:13px;color:var(--steel-dark);line-height:1.6;margin-bottom:2px;">「${tmplSelectedKosyu}」を削除すると、配下の中科目・施工前・施工状況・工程管理・施工完了の項目もすべて削除されます。この操作は元に戻せません。</div>`;
+    esOk.textContent = '削除する';
+    esOk.classList.add('danger');
+  } else if(field === 'newChuka'){
+    esTitle.textContent = '新しい中科目を追加';
+    esBody.innerHTML = `<input type="text" id="esInput" placeholder="例: 柱">`;
+  } else if(field === 'deleteChuka'){
+    esTitle.textContent = '中科目を削除しますか?';
+    esBody.innerHTML = `<div style="font-size:13px;color:var(--steel-dark);line-height:1.6;margin-bottom:2px;">「${tmplSelectedChuka}」を削除すると、設定した施工前・施工状況・工程管理・施工完了の項目もすべて削除されます。この操作は元に戻せません。</div>`;
+    esOk.textContent = '削除する';
+    esOk.classList.add('danger');
+  }
+  editBackdrop.classList.add('show');
+}
+function closeEditSheet(){ editBackdrop.classList.remove('show'); editingField = null; }
+
+document.querySelectorAll('.editable[data-field]').forEach(el=>{
+  el.addEventListener('click', (e)=>{
+    if(justDragged){ e.stopPropagation(); return; }
+    openEditSheet(el.dataset.field);
+  });
+});
+esCancel.addEventListener('click', closeEditSheet);
+editBackdrop.addEventListener('click', (e)=>{ if(e.target === editBackdrop) closeEditSheet(); });
+
+esOk.addEventListener('click', async ()=>{
+  const esInputEl = document.getElementById('esInput');
+  const val = esInputEl ? esInputEl.value : '';
+  if(editingField === 'kosyu'){
+    selKosyu.value = val;
+    refreshSetupChuka();
+    selChuka.value = selChuka.options[0] ? selChuka.options[0].value : '';
+    refreshItemOptions();
+    selItem.value = selItem.options[0] ? selItem.options[0].value : '';
+    closeEditSheet();
+    updateBlackboard(); updateRemainChip(); await updateGhost(); applyGhostVisibility();
+  } else if(editingField === 'chuka'){
+    selChuka.value = val;
+    refreshItemOptions();
+    selItem.value = selItem.options[0] ? selItem.options[0].value : '';
+    closeEditSheet();
+    updateBlackboard(); updateRemainChip(); await updateGhost(); applyGhostVisibility();
+  } else if(editingField === 'sokuten'){
+    document.getElementById('inSokuten').value = val;
+    closeEditSheet();
+    updateBlackboard(); updateRemainChip(); await updateGhost(); applyGhostVisibility();
+  } else if(editingField === 'item'){
+    selItem.value = val;
+    closeEditSheet();
+    updateBlackboard(); updateRemainChip(); await updateGhost(); applyGhostVisibility();
+  } else if(editingField === 'newKosyu'){
+    const name = val.trim();
+    closeEditSheet();
+    if(name && !TEMPLATE[name]){
+      TEMPLATE[name] = {
+        "共通": {
+          "施工前": [{name:"施工前", required:true}],
+          "施工状況": [],
+          "工程管理": [{name:"工程管理", required:true}],
+          "施工完了": [{name:"施工完了", required:true}]
+        }
+      };
+      await saveTemplate();
+      refreshKosyuSelects();
+      refreshSetupChuka();
+      refreshItemOptions();
+      tmplSelectedKosyu = name;
+      tmplSelectedChuka = null;
+      renderTemplateEditor();
+    }
+  } else if(editingField === 'deleteKosyu'){
+    const target = tmplSelectedKosyu;
+    closeEditSheet();
+    delete TEMPLATE[target];
+    tmplSelectedKosyu = null;
+    tmplSelectedChuka = null;
+    await saveTemplate();
+    refreshKosyuSelects();
+    refreshSetupChuka();
+    refreshItemOptions();
+    renderTemplateEditor();
+  } else if(editingField === 'newChuka'){
+    const name = val.trim();
+    closeEditSheet();
+    if(name && tmplSelectedKosyu && !TEMPLATE[tmplSelectedKosyu][name]){
+      TEMPLATE[tmplSelectedKosyu][name] = {
+        "施工前": [{name:"施工前", required:true}],
+        "施工状況": [],
+        "工程管理": [{name:"工程管理", required:true}],
+        "施工完了": [{name:"施工完了", required:true}]
+      };
+      await saveTemplate();
+      refreshSetupChuka();
+      refreshItemOptions();
+      tmplSelectedChuka = name;
+      renderTemplateEditor();
+    }
+  } else if(editingField === 'deleteChuka'){
+    const targetKosyu = tmplSelectedKosyu, targetChuka = tmplSelectedChuka;
+    closeEditSheet();
+    delete TEMPLATE[targetKosyu][targetChuka];
+    tmplSelectedChuka = null;
+    await saveTemplate();
+    refreshSetupChuka();
+    refreshItemOptions();
+    renderTemplateEditor();
+  }
+});
+
+/* ---------------- 黒板の長押しドラッグ移動 ---------------- */
+const blackboardEl = document.querySelector('.blackboard');
+const camwrapEl = document.querySelector('.camwrap');
+let longPressTimer = null;
+let dragging = false;
+let justDragged = false;
+let pStartX = 0, pStartY = 0, elStartLeft = 0, elStartTop = 0;
+
+function bbToTopLeft(){
+  // bottom/left指定から top/left指定へ切り替えて、以後は自由に動かせるようにする
+  const wrapRect = camwrapEl.getBoundingClientRect();
+  const bbRect = blackboardEl.getBoundingClientRect();
+  const left = bbRect.left - wrapRect.left;
+  const top = bbRect.top - wrapRect.top;
+  blackboardEl.style.left = left + 'px';
+  blackboardEl.style.top = top + 'px';
+  blackboardEl.style.bottom = 'auto';
+  return { left, top };
+}
+
+function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+blackboardEl.addEventListener('pointerdown', (e)=>{
+  pStartX = e.clientX; pStartY = e.clientY;
+  clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(()=>{
+    dragging = true;
+    const pos = bbToTopLeft();
+    elStartLeft = pos.left; elStartTop = pos.top;
+    blackboardEl.classList.add('dragging');
+    blackboardEl.setPointerCapture(e.pointerId);
+    if(navigator.vibrate) navigator.vibrate(15);
+  }, 380);
+});
+
+blackboardEl.addEventListener('pointermove', (e)=>{
+  if(!dragging){
+    if(Math.abs(e.clientX-pStartX) > 10 || Math.abs(e.clientY-pStartY) > 10){
+      clearTimeout(longPressTimer);
+    }
+    return;
+  }
+  const dx = e.clientX - pStartX;
+  const dy = e.clientY - pStartY;
+  const wrapRect = camwrapEl.getBoundingClientRect();
+  const bbRect = blackboardEl.getBoundingClientRect();
+  const maxLeft = wrapRect.width - bbRect.width;
+  const maxTop = wrapRect.height - bbRect.height;
+  blackboardEl.style.left = clamp(elStartLeft + dx, 0, Math.max(0,maxLeft)) + 'px';
+  blackboardEl.style.top = clamp(elStartTop + dy, 0, Math.max(0,maxTop)) + 'px';
+});
+
+function endDrag(e){
+  clearTimeout(longPressTimer);
+  if(dragging){
+    dragging = false;
+    blackboardEl.classList.remove('dragging');
+    justDragged = true;
+    setTimeout(()=>{ justDragged = false; }, 250);
+  }
+}
+blackboardEl.addEventListener('pointerup', endDrag);
+blackboardEl.addEventListener('pointercancel', endDrag);
+
+/* ---------------- 撮影(シャッター) ---------------- */
+const toast = document.getElementById('toast');
+document.getElementById('shutterBtn').addEventListener('click', async ()=>{
+  if(!stream){ return; }
+  const s = currentSelection();
+  const canvas = document.createElement('canvas');
+  const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
+  const targetW = 480;
+  canvas.width = targetW;
+  canvas.height = Math.round(vh * (targetW / vw));
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const thumb = canvas.toDataURL('image/jpeg', 0.6);
+
+  photos.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    kosyu: s.kosyu, chuka: s.chuka, kotei: s.kotei, item: s.item, sokuten: s.sokuten,
+    thumb, ts: Date.now()
+  });
+  await savePhotos();
+  updateRemainChip();
+  await updateGhost();
+  applyGhostVisibility();
+
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'), 1200);
+});
+
+/* ---------------- チェックリスト ---------------- */
+checkKosyu.addEventListener('change', ()=> renderChecklist(true, true));
+checkChuka.addEventListener('change', ()=> renderChecklist(false, true));
+checkSokuten.addEventListener('change', ()=> renderChecklist(false, false));
+
+function sokutenListFor(kosyu, chuka){
+  const set = new Set();
+  photos.filter(p=>p.kosyu===kosyu && p.chuka===chuka).forEach(p=> set.add(p.sokuten || '(未入力)'));
+  return Array.from(set).sort();
+}
+
+function renderChecklist(resetChuka, resetSokuten){
+  const k = checkKosyu.value || kosyuList()[0];
+  checkKosyu.value = k;
+
+  const chukaOpts = chukaList(k);
+  const prevChuka = checkChuka.value;
+  checkChuka.innerHTML = chukaOpts.map(c=>`<option>${c}</option>`).join('');
+  if(!resetChuka && chukaOpts.includes(prevChuka)) checkChuka.value = prevChuka;
+  else checkChuka.value = chukaOpts[0] || '';
+  const chuka = checkChuka.value;
+
+  const sokList = chuka ? sokutenListFor(k, chuka) : [];
+  const prevSok = checkSokuten.value;
+  checkSokuten.innerHTML = `<option value="__all__">すべての測点</option>` +
+    sokList.map(s=>`<option value="${s}">${s}</option>`).join('');
+  if(!resetSokuten && sokList.includes(prevSok)) checkSokuten.value = prevSok;
+  else checkSokuten.value = '__all__';
+  const sokFilter = checkSokuten.value;
+
+  const teiList = ["施工前","施工状況","工程管理","施工完了"];
+  let totalReq = 0, totalOk = 0;
+  const body = document.getElementById('checklistBody');
+  body.innerHTML = '';
+
+  if(!chuka){
+    body.innerHTML = '<div class="empty-note">この工種にはまだ中科目がありません。④テンプレート編集から追加できます。</div>';
+    document.getElementById('cntOk').textContent = 0;
+    document.getElementById('cntNg').textContent = 0;
+    document.getElementById('cntAll').textContent = 0;
+    document.getElementById('checklistSub').textContent = `${k} の撮影漏れチェック結果`;
+    return;
+  }
+
+  teiList.forEach(kotei=>{
+    const items = ((TEMPLATE[k] && TEMPLATE[k][chuka] && TEMPLATE[k][chuka][kotei]) || []).filter(i=>i.required);
+    if(items.length===0) return;
+    let groupOk = 0;
+    let rows = '';
+    items.forEach(item=>{
+      const match = photos.find(p=>
+        p.kosyu===k && p.chuka===chuka && p.kotei===kotei && p.item===item.name &&
+        (sokFilter === '__all__' || (p.sokuten||'(未入力)') === sokFilter)
+      );
+      totalReq++;
+      if(match){ totalOk++; groupOk++; }
+      rows += `
+        <div class="check-item">
+          ${match ? `<img class="check-thumb" src="${match.thumb}">` : `<div class="check-mark ng">!</div>`}
+          <div class="check-text">
+            <div class="check-title">${item.name}</div>
+            <div class="check-sub">${match ? (sokFilter === '__all__' ? `測点: ${match.sokuten||'(未入力)'} ・ ` : '') + new Date(match.ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' 撮影' : '未撮影'}</div>
+          </div>
+          ${match ? `<div class="del-btn" data-id="${match.id}">削除</div>` : ''}
+        </div>`;
+    });
+    body.innerHTML += `<div class="group-title">${kotei}<span>${groupOk}/${items.length}</span></div>` + rows;
+  });
+
+  if(totalReq===0){
+    body.innerHTML = '<div class="empty-note">この工種・中科目の必須テンプレートが未設定です。④テンプレート編集から追加できます。</div>';
+  } else if(sokList.length===0){
+    body.innerHTML = '<div class="empty-note">まだこの工種・中科目の撮影データがありません。②撮影で測点を入力して撮影すると、ここで測点ごとに確認できます。</div>' + body.innerHTML;
+  }
+
+  document.getElementById('cntOk').textContent = totalOk;
+  document.getElementById('cntNg').textContent = totalReq - totalOk;
+  document.getElementById('cntAll').textContent = totalReq;
+  document.getElementById('checklistSub').textContent = sokFilter === '__all__'
+    ? `${k} / ${chuka} の撮影漏れチェック結果(全測点)`
+    : `${k} / ${chuka} / 測点: ${sokFilter} の撮影漏れチェック結果`;
+
+  document.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      photos = photos.filter(p=>p.id !== btn.dataset.id);
+      await savePhotos();
+      renderChecklist(false, false);
+      updateRemainChip();
+    });
+  });
+}
+
+/* ---------------- テンプレート編集 ---------------- */
+let tmplSelectedKosyu = null;
+let tmplSelectedChuka = null;
+
+function renderTemplateEditor(){
+  if(!tmplSelectedKosyu || !TEMPLATE[tmplSelectedKosyu]) tmplSelectedKosyu = kosyuList()[0];
+  const pillsEl = document.getElementById('tmplPills');
+  pillsEl.innerHTML = kosyuList().map(k=>
+    `<div class="pill ${k===tmplSelectedKosyu?'active':''}" data-k="${k}">${k}</div>`
+  ).join('') + `<div class="pill add" id="tmplAddKosyu">＋ 工種を追加</div>`;
+
+  pillsEl.querySelectorAll('.pill[data-k]').forEach(p=>{
+    p.addEventListener('click', ()=>{ tmplSelectedKosyu = p.dataset.k; tmplSelectedChuka = null; renderTemplateEditor(); });
+  });
+  document.getElementById('tmplAddKosyu').addEventListener('click', ()=> openEditSheet('newKosyu'));
+
+  const chukaPillsEl = document.getElementById('tmplChukaPills');
+  const body = document.getElementById('tmplBody');
+
+  if(!tmplSelectedKosyu){
+    chukaPillsEl.innerHTML = '';
+    body.innerHTML = '<div class="empty-note">工種がまだありません。上の「＋ 工種を追加」から作成してください。</div>';
+    return;
+  }
+
+  const chukaOpts = chukaList(tmplSelectedKosyu);
+  if(!tmplSelectedChuka || !chukaOpts.includes(tmplSelectedChuka)) tmplSelectedChuka = chukaOpts[0] || null;
+
+  chukaPillsEl.innerHTML = chukaOpts.map(c=>
+    `<div class="pill ${c===tmplSelectedChuka?'active':''}" data-c="${c}">${c}</div>`
+  ).join('') + `<div class="pill add" id="tmplAddChuka">＋ 中科目を追加</div>`;
+
+  chukaPillsEl.querySelectorAll('.pill[data-c]').forEach(p=>{
+    p.addEventListener('click', ()=>{ tmplSelectedChuka = p.dataset.c; renderTemplateEditor(); });
+  });
+  document.getElementById('tmplAddChuka').addEventListener('click', ()=> openEditSheet('newChuka'));
+
+  if(!tmplSelectedChuka){
+    body.innerHTML = '<div class="empty-note">この工種にはまだ中科目がありません。上の「＋ 中科目を追加」から作成してください。</div>' +
+      `<div class="danger-btn" id="tmplDeleteKosyu">「${tmplSelectedKosyu}」(工種)を削除</div>`;
+    const delK0 = document.getElementById('tmplDeleteKosyu');
+    if(delK0) delK0.addEventListener('click', ()=> openEditSheet('deleteKosyu'));
+    return;
+  }
+
+  const node = TEMPLATE[tmplSelectedKosyu][tmplSelectedChuka];
+  const processes = ["施工前","施工状況","工程管理","施工完了"];
+  body.innerHTML = processes.map(proc=>{
+    const items = node[proc] || (node[proc] = []);
+    const linked = proc === '工程管理';
+    const rows = items.map((it, idx)=>`
+      <div class="shot-row" data-proc="${proc}" data-idx="${idx}">
+        ${linked ? '' : '<span class="drag-handle">⠿</span>'}
+        <input class="shot-input" value="${it.name}" ${linked ? 'readonly' : ''}>
+        <div class="req-toggle ${it.required?'required':'optional'}">${it.required?'必須':'任意'}</div>
+        ${linked ? '' : '<span class="remove-x">×</span>'}
+      </div>`).join('');
+    return `
+      <div class="process-block">
+        <div class="process-head"><div class="process-name">${proc}${linked ? '<span style="font-weight:500;color:var(--steel);font-size:10.5px;margin-left:6px;">(施工状況と項目名を連動)</span>' : ''}</div><div class="process-count">${items.length}項目</div></div>
+        ${rows}
+        ${linked ? '' : `<div class="add-shot-row" data-proc="${proc}">＋ ショット項目を追加</div>`}
+      </div>`;
+  }).join('') + `<div class="hint" style="padding:0 16px 24px;">変更は自動保存され、①設定・②撮影・③チェックリストにすぐ反映されます。「工程管理」の項目名は「施工状況」と連動しますが、必須/任意は個別に設定できます。</div>` +
+    `<div class="danger-btn" id="tmplDeleteChuka">「${tmplSelectedChuka}」(中科目)を削除</div>` +
+    `<div class="danger-btn" id="tmplDeleteKosyu">「${tmplSelectedKosyu}」(工種)を削除</div>`;
+
+  body.querySelectorAll('.shot-input:not([readonly])').forEach(inp=>{
+    inp.addEventListener('change', async (e)=>{
+      const row = e.target.closest('.shot-row');
+      const proc = row.dataset.proc, idx = +row.dataset.idx;
+      const v = e.target.value.trim();
+      if(v) node[proc][idx].name = v;
+      else e.target.value = node[proc][idx].name;
+      if(proc === '施工状況') syncManagementItems(tmplSelectedKosyu, tmplSelectedChuka);
+      await saveTemplate();
+      refreshItemOptions();
+      updateBlackboard();
+      if(proc === '施工状況') renderTemplateEditor();
+    });
+  });
+  body.querySelectorAll('.req-toggle').forEach(t=>{
+    const row = t.closest('.shot-row');
+    t.addEventListener('click', async (e)=>{
+      const proc = row.dataset.proc, idx = +row.dataset.idx;
+      const item = node[proc][idx];
+      item.required = !item.required;
+      t.classList.toggle('required', item.required);
+      t.classList.toggle('optional', !item.required);
+      t.textContent = item.required ? '必須' : '任意';
+      await saveTemplate();
+    });
+  });
+  body.querySelectorAll('.remove-x').forEach(x=>{
+    x.addEventListener('click', async (e)=>{
+      const row = e.target.closest('.shot-row');
+      const proc = row.dataset.proc, idx = +row.dataset.idx;
+      node[proc].splice(idx,1);
+      if(proc === '施工状況') syncManagementItems(tmplSelectedKosyu, tmplSelectedChuka);
+      await saveTemplate();
+      refreshItemOptions();
+      renderTemplateEditor();
+    });
+  });
+  body.querySelectorAll('.add-shot-row').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const proc = btn.dataset.proc;
+      node[proc].push({name:'', required:true});
+      if(proc === '施工状況') syncManagementItems(tmplSelectedKosyu, tmplSelectedChuka);
+      await saveTemplate();
+      refreshItemOptions();
+      renderTemplateEditor();
+      const rows = document.querySelectorAll(`.shot-row[data-proc="${proc}"]`);
+      const lastInput = rows[rows.length-1] && rows[rows.length-1].querySelector('.shot-input');
+      if(lastInput) lastInput.focus();
+    });
+  });
+  const delChuka = document.getElementById('tmplDeleteChuka');
+  if(delChuka) delChuka.addEventListener('click', ()=> openEditSheet('deleteChuka'));
+  const delKosyu = document.getElementById('tmplDeleteKosyu');
+  if(delKosyu) delKosyu.addEventListener('click', ()=> openEditSheet('deleteKosyu'));
+}
+
+/* ---------------- PWA: ホーム画面追加 & Service Worker ---------------- */
+let deferredPrompt = null;
+function showInstallBanner(kind){
+  const banner = document.getElementById('installBanner');
+  const text = document.getElementById('installText');
+  const btn = document.getElementById('installBtn');
+  if(kind === 'ios'){
+    text.textContent = '共有ボタン→「ホーム画面に追加」でアプリのように使えます';
+    btn.style.display = 'none';
+  } else {
+    text.textContent = 'ホーム画面に追加すると、アプリのように使えます';
+    btn.style.display = 'inline-block';
+  }
+  banner.style.display = 'flex';
+}
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBanner('android');
+});
+document.getElementById('installBtn').addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').style.display = 'none';
+});
+document.getElementById('installClose').addEventListener('click', ()=>{
+  document.getElementById('installBanner').style.display = 'none';
+});
+const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if(isIos && !isStandalone){ showInstallBanner('ios'); }
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(err=>console.error('SW registration failed', err));
+  });
+}
+
+/* ---------------- init ---------------- */
+(async function init(){
+  await loadSiteInfo();
+  await loadTemplate();
+  refreshKosyuSelects();
+  refreshSetupChuka();
+  refreshItemOptions();
+  await loadPhotos();
+  renderChecklist();
+})();
+</script>
+</body>
+</html>
