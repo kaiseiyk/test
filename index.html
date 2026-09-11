@@ -243,6 +243,10 @@
   .req-toggle.optional{background:#eef1f2;color:var(--steel);}
   .remove-x{color:var(--steel);font-size:16px;flex-shrink:0;cursor:pointer;padding:2px 4px;}
   .add-shot-row{padding:11px 14px;border-top:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--amber-dim);font-family:'Zen Kaku Gothic New',sans-serif;cursor:pointer;}
+  .rename-link{
+    padding:0 16px 12px;font-size:11.5px;color:var(--steel-dark);
+    text-decoration:underline;cursor:pointer;font-family:'Noto Sans JP',sans-serif;
+  }
 </style>
 </head>
 <body>
@@ -308,7 +312,6 @@
       <div class="blackboard">
         <div class="bb-row"><div class="bb-label">工事名</div><div class="bb-fill" id="bbKoji">〇〇マンション新築工事</div></div>
         <div class="bb-row"><div class="bb-label">工種</div><div class="bb-fill editable" id="bbKosyu" data-field="kosyu">-</div><div class="bb-label">測点</div><div class="bb-fill editable" id="bbSokuten" data-field="sokuten">-</div></div>
-        <div class="bb-row"><div class="bb-label">中科目</div><div class="bb-fill editable" id="bbChuka" data-field="chuka">-</div></div>
         <div class="bb-grid"><div class="bb-item-note editable" id="bbItem" data-field="item">-</div></div>
         <div class="bb-row"><div class="bb-label">施工会社</div><div class="bb-fill" id="bbCompany">△△建設(株)</div></div>
       </div>
@@ -353,7 +356,9 @@
   <div class="view" id="v4">
     <div class="topbar"><div class="ttl">工種テンプレート編集</div><div class="sub">工種→中科目ごとに工程・必須ショットを設定します</div></div>
     <div class="kosyu-pills" id="tmplPills"></div>
+    <div id="tmplRenameKosyu"></div>
     <div class="kosyu-pills" id="tmplChukaPills" style="padding-top:0;"></div>
+    <div id="tmplRenameChuka"></div>
     <div id="tmplBody"></div>
   </div>
 
@@ -375,44 +380,7 @@
 
 <script>
 /* ---------------- テンプレート(初期値。編集内容は端末に保存され上書きされる) ---------------- */
-const DEFAULT_TEMPLATE = {
-  "鉄筋工事": {
-    "柱": {
-      "施工前": [{name:"全景写真(施工前)",required:true}],
-      "施工状況": [{name:"かぶり厚検査",required:true},{name:"継手・定着状況",required:true}],
-      "工程管理": [{name:"かぶり厚検査 施工完了",required:true},{name:"継手・定着状況 施工完了",required:true}],
-      "施工完了": [{name:"施工完了",required:true}]
-    },
-    "梁": {
-      "施工前": [{name:"全景写真(施工前)",required:true}],
-      "施工状況": [{name:"建込み精度(垂直・水平)",required:true},{name:"かぶり厚検査",required:true}],
-      "工程管理": [{name:"建込み精度(垂直・水平) 施工完了",required:true},{name:"かぶり厚検査 施工完了",required:true}],
-      "施工完了": [{name:"施工完了",required:true}]
-    },
-    "スラブ": {
-      "施工前": [{name:"墨出し状況",required:true}],
-      "施工状況": [{name:"かぶり厚検査",required:true}],
-      "工程管理": [{name:"かぶり厚検査 施工完了",required:true}],
-      "施工完了": [{name:"施工完了",required:true}]
-    }
-  },
-  "型枠工事": {
-    "共通": {
-      "施工前": [{name:"全景写真(施工前)",required:true},{name:"墨出し状況",required:true},{name:"使用資材の品番表示",required:false}],
-      "施工状況": [{name:"建込み精度(垂直・水平)",required:true},{name:"セパレーター・締付状況",required:true}],
-      "工程管理": [{name:"建込み精度(垂直・水平) 施工完了",required:true},{name:"セパレーター・締付状況 施工完了",required:true}],
-      "施工完了": [{name:"施工完了",required:true}]
-    }
-  },
-  "配管工事": {
-    "共通": {
-      "施工前": [{name:"配管ルート全景",required:true}],
-      "施工状況": [{name:"接続部・支持金物",required:true}],
-      "工程管理": [{name:"接続部・支持金物 施工完了",required:true}],
-      "施工完了": [{name:"施工完了",required:true}]
-    }
-  }
-};
+const DEFAULT_TEMPLATE = {};
 let TEMPLATE = {};
 function kosyuList(){ return Object.keys(TEMPLATE); }
 function chukaList(kosyu){ return TEMPLATE[kosyu] ? Object.keys(TEMPLATE[kosyu]) : []; }
@@ -623,7 +591,6 @@ function currentSelection(){
 function updateBlackboard(){
   const s = currentSelection();
   document.getElementById('bbKosyu').textContent = s.kosyu;
-  document.getElementById('bbChuka').textContent = s.chuka;
   document.getElementById('bbSokuten').textContent = s.sokuten;
   document.getElementById('bbItem').textContent = s.item;
   document.getElementById('bbKoji').textContent = siteInfo.koji;
@@ -711,6 +678,12 @@ function openEditSheet(field){
     esBody.innerHTML = `<div style="font-size:13px;color:var(--steel-dark);line-height:1.6;margin-bottom:2px;">「${tmplSelectedChuka}」を削除すると、設定した施工前・施工状況・工程管理・施工完了の項目もすべて削除されます。この操作は元に戻せません。</div>`;
     esOk.textContent = '削除する';
     esOk.classList.add('danger');
+  } else if(field === 'renameKosyu'){
+    esTitle.textContent = '工種名を変更';
+    esBody.innerHTML = `<input type="text" id="esInput" value="${tmplSelectedKosyu}">`;
+  } else if(field === 'renameChuka'){
+    esTitle.textContent = '中科目名を変更';
+    esBody.innerHTML = `<input type="text" id="esInput" value="${tmplSelectedChuka}">`;
   }
   editBackdrop.classList.add('show');
 }
@@ -806,6 +779,41 @@ esOk.addEventListener('click', async ()=>{
     refreshSetupChuka();
     refreshItemOptions();
     renderTemplateEditor();
+  } else if(editingField === 'renameKosyu'){
+    const oldName = tmplSelectedKosyu;
+    const newName = val.trim();
+    closeEditSheet();
+    if(newName && newName !== oldName && !TEMPLATE[newName]){
+      TEMPLATE[newName] = TEMPLATE[oldName];
+      delete TEMPLATE[oldName];
+      photos.forEach(p=>{ if(p.kosyu === oldName) p.kosyu = newName; });
+      await savePhotos();
+      tmplSelectedKosyu = newName;
+      await saveTemplate();
+      refreshKosyuSelects();
+      if(selKosyu.value === oldName || kosyuList().includes(newName)) selKosyu.value = newName;
+      if(checkKosyu.value === oldName) checkKosyu.value = newName;
+      refreshSetupChuka();
+      refreshItemOptions();
+      renderTemplateEditor();
+    }
+  } else if(editingField === 'renameChuka'){
+    const kosyu = tmplSelectedKosyu, oldName = tmplSelectedChuka;
+    const newName = val.trim();
+    closeEditSheet();
+    if(newName && newName !== oldName && !TEMPLATE[kosyu][newName]){
+      TEMPLATE[kosyu][newName] = TEMPLATE[kosyu][oldName];
+      delete TEMPLATE[kosyu][oldName];
+      photos.forEach(p=>{ if(p.kosyu === kosyu && p.chuka === oldName) p.chuka = newName; });
+      await savePhotos();
+      tmplSelectedChuka = newName;
+      await saveTemplate();
+      if(selKosyu.value === kosyu) selChuka.value = newName;
+      refreshSetupChuka();
+      if(selChuka.value !== newName && chukaList(kosyu).includes(newName)) selChuka.value = newName;
+      refreshItemOptions();
+      renderTemplateEditor();
+    }
   }
 });
 
@@ -1008,14 +1016,21 @@ function renderTemplateEditor(){
   });
   document.getElementById('tmplAddKosyu').addEventListener('click', ()=> openEditSheet('newKosyu'));
 
+  const renameKosyuEl = document.getElementById('tmplRenameKosyu');
   const chukaPillsEl = document.getElementById('tmplChukaPills');
+  const renameChukaEl = document.getElementById('tmplRenameChuka');
   const body = document.getElementById('tmplBody');
 
   if(!tmplSelectedKosyu){
+    renameKosyuEl.innerHTML = '';
     chukaPillsEl.innerHTML = '';
+    renameChukaEl.innerHTML = '';
     body.innerHTML = '<div class="empty-note">工種がまだありません。上の「＋ 工種を追加」から作成してください。</div>';
     return;
   }
+
+  renameKosyuEl.innerHTML = `<div class="rename-link" id="tmplRenameKosyuBtn">✎ 「${tmplSelectedKosyu}」の名称を変更</div>`;
+  document.getElementById('tmplRenameKosyuBtn').addEventListener('click', ()=> openEditSheet('renameKosyu'));
 
   const chukaOpts = chukaList(tmplSelectedKosyu);
   if(!tmplSelectedChuka || !chukaOpts.includes(tmplSelectedChuka)) tmplSelectedChuka = chukaOpts[0] || null;
@@ -1030,12 +1045,16 @@ function renderTemplateEditor(){
   document.getElementById('tmplAddChuka').addEventListener('click', ()=> openEditSheet('newChuka'));
 
   if(!tmplSelectedChuka){
+    renameChukaEl.innerHTML = '';
     body.innerHTML = '<div class="empty-note">この工種にはまだ中科目がありません。上の「＋ 中科目を追加」から作成してください。</div>' +
       `<div class="danger-btn" id="tmplDeleteKosyu">「${tmplSelectedKosyu}」(工種)を削除</div>`;
     const delK0 = document.getElementById('tmplDeleteKosyu');
     if(delK0) delK0.addEventListener('click', ()=> openEditSheet('deleteKosyu'));
     return;
   }
+
+  renameChukaEl.innerHTML = `<div class="rename-link" id="tmplRenameChukaBtn">✎ 「${tmplSelectedChuka}」の名称を変更</div>`;
+  document.getElementById('tmplRenameChukaBtn').addEventListener('click', ()=> openEditSheet('renameChuka'));
 
   const node = TEMPLATE[tmplSelectedKosyu][tmplSelectedChuka];
   const processes = ["施工前","施工状況","工程管理","施工完了"];
